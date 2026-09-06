@@ -312,7 +312,7 @@ async function toEaglerSkin(blob: Blob): Promise<Uint8Array<ArrayBuffer>> {
 
 	const newBuff = new Uint8Array(16384);
 	const bitmap = jimpImage.data;
-	for (let i = 1; i < 64 ** 2; i++) {
+	for (let i = 0; i < 64 ** 2; i++) {
 		const bytePos = i * 4;
 		// red, green, blue, alpha => alpha, blue, green, red
 		newBuff[bytePos] = bitmap[bytePos + 3];

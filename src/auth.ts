@@ -26,7 +26,6 @@ interface DeviceCodeResult {
 }
 
 export async function deviceCodeAuth(): Promise<DeviceCodeResult> {
-	// TOOD: Type
 	const deviceCodeRes = await epoxyFetch(
 		"https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode",
 		{

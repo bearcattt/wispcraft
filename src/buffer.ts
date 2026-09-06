@@ -1,22 +1,35 @@
 const decoder = new TextDecoder();
 
+// smallest backing allocation, so buffers that only ever hold a few bytes
+// (most outgoing packets) don't need to reallocate at all after the first write
+const MIN_CAPACITY = 32;
+
 export class Buffer {
-	inner: Uint8Array;
+	// backing storage; may have spare capacity past `end`
+	private store: Uint8Array;
+	// valid bytes are store[start, end)
+	private start: number;
+	private end: number;
 
 	static new(): Buffer {
 		return new Buffer(new Uint8Array());
 	}
 
 	constructor(inner: Uint8Array | number[], copy?: boolean) {
+		let arr: Uint8Array;
 		if (inner instanceof Uint8Array) {
-			if (copy) {
-				this.inner = inner.slice();
-			} else {
-				this.inner = inner;
-			}
+			arr = copy ? inner.slice() : inner;
 		} else {
-			this.inner = Uint8Array.from(inner);
+			arr = Uint8Array.from(inner);
 		}
+		this.store = arr;
+		this.start = 0;
+		this.end = arr.length;
+	}
+
+	// view of the valid bytes; never includes spare capacity
+	get inner(): Uint8Array {
+		return this.store.subarray(this.start, this.end);
 	}
 
 	copy(): Buffer {
@@ -27,25 +40,44 @@ export class Buffer {
 	take(cnt: number): Buffer {
 		if (this.length < cnt) throw new Error("data too small");
 
-		const ret = this.inner.subarray(0, cnt);
-		this.inner = this.inner.subarray(cnt);
+		const ret = this.store.subarray(this.start, this.start + cnt);
+		this.start += cnt;
 		return new Buffer(ret);
 	}
 
+	// grows the backing storage so `extra` more bytes can be appended without
+	// reallocating. only ever appends into untouched spare capacity or moves
+	// live data into fresh memory - never writes over bytes still referenced
+	// by a previously take()n buffer, since those keep pointing at the old
+	// (unmodified) backing storage.
+	private reserve(extra: number) {
+		if (this.store.length - this.end >= extra) return;
+
+		const needed = this.length + extra;
+		const newCapacity = Math.max(needed, this.store.length * 2, MIN_CAPACITY);
+		const newStore = new Uint8Array(newCapacity);
+		newStore.set(this.inner);
+		this.store = newStore;
+		this.end -= this.start;
+		this.start = 0;
+	}
+
 	resize(newlen: number) {
-		const arr = new Uint8Array(new ArrayBuffer(newlen));
-		arr.set(this.inner);
-		this.inner = arr;
+		if (newlen > this.length) {
+			this.reserve(newlen - this.length);
+		}
+		this.end = this.start + newlen;
 	}
 
 	extend(buf: Buffer) {
-		const loc = this.inner.length;
-		this.resize(this.inner.length + buf.inner.length);
-		this.inner.set(buf.inner, loc);
+		const addLen = buf.length;
+		this.reserve(addLen);
+		this.store.set(buf.inner, this.end);
+		this.end += addLen;
 	}
 
 	get(idx: number): number {
-		return this.inner[idx];
+		return this.store[this.start + idx];
 	}
 
 	toArray(): number[] {
@@ -56,7 +88,7 @@ export class Buffer {
 	}
 
 	get length(): number {
-		return this.inner.length;
+		return this.end - this.start;
 	}
 
 	readString(): string {
@@ -115,7 +147,7 @@ export class Buffer {
 		let byte: number;
 
 		do {
-			if (index >= this.inner.length) {
+			if (index >= this.length) {
 				throw new Error("data too small");
 			}
 			byte = this.get(index++);

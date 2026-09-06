@@ -76,7 +76,6 @@ export function lengthTransformer(): TransformStream<Buffer> {
 	let currentSize = -1;
 	return new TransformStream({
 		transform(chunk, controller) {
-			const start = performance.now();
 			currentPacket.extend(chunk);
 			while (true) {
 				if (currentSize === -1) {
@@ -110,7 +109,6 @@ export class Decompressor {
 		const self = this;
 		this.transform = new TransformStream({
 			async transform(chunk, controller) {
-				const start = performance.now();
 				if (self.compressionThresh === -1) {
 					controller.enqueue(chunk);
 					return;
@@ -141,7 +139,6 @@ export class Compressor {
 		}
 
 		const packet = Buffer.new();
-		// TODO: avoid the copies here
 		if (chunk.length < this.compressionThresh) {
 			packet.writeVarInt(0);
 			packet.extend(chunk);

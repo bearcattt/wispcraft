@@ -313,7 +313,6 @@ class AutoWS extends EventTarget {
 				flag3 = true;
 				called = false;
 				flag = false;
-				flag2 = false;
 				const bt = (this.inner as WebSocket)?.binaryType || "arraybuffer";
 				this.inner?.close();
 				this.inner = null;

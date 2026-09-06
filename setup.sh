@@ -1,7 +1,8 @@
 #!/bin/sh
 rm -rf dist
 mkdir -p dist
-npm run build
+pnpm install --frozen-lockfile
+pnpm run build
 cd dist
 curl -L https://bafybeid5iwqp3uyc4q3dqajjzbsqggqatuttqk4dnkksluqqcxaizbhjpi.ipfs.dweb.link/?filename=u53_web.zip -o eaglercraft.zip
 unzip eaglercraft.zip -d eaglercraft

@@ -3,7 +3,6 @@ import { reconnect, set_wisp_server } from "./connection/epoxy";
 import {
 	authstore,
 	DEFAULT_WISP_URL,
-	getLastUsedAccount,
 	getLoggedInAccounts,
 	TokenStore,
 	wispUrl,
@@ -473,7 +472,9 @@ export function createUI() {
 			removeButton.disabled = true;
 			return;
 		}
-		const account = getLastUsedAccount();
+		const account = getLoggedInAccounts()?.find(
+			(acc) => acc.username === accountSelect.value
+		);
 		if (account) {
 			try {
 				try {
@@ -517,7 +518,15 @@ export function createUI() {
 		}
 		accounts.splice(existingAccount, 1);
 		localStorage["wispcraft_accounts"] = JSON.stringify(accounts);
+		const wasActive = accountSelect.value === authstore.user?.name;
 		accountSelect.remove(accountSelect.selectedIndex);
+		if (wasActive) {
+			authstore.user = null;
+			authstore.yggToken = "";
+			localStorage["wispcraft_last_used_account"] = "no-account";
+			accountSelect.value = "no-account";
+			removeButton.disabled = true;
+		}
 	};
 
 	removeButton.onclick = removeAcc;

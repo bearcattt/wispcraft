@@ -128,13 +128,16 @@ export class Connection {
 
 			while (true) {
 				const { done, value } = await reader.read();
-				if (done || !value) return;
+				if (done || !value) break;
 
 				await impl.epoxyRead(value);
 				backlog--;
 			}
 
-			// TODO cleanup
+			// server connection closed, tell the eagler side we're done
+			try {
+				await this.processOut.close();
+			} catch {}
 		})();
 
 		// eagler -> process -> (hopefully) epoxy task
@@ -147,14 +150,16 @@ export class Connection {
 			).getReader();
 
 			while (true) {
-				const start = performance.now();
 				const { done, value } = await reader.read();
-				if (done || !value) return;
+				if (done || !value) break;
 				await impl.eaglerRead(value);
 				backlog--;
 			}
 
-			// TODO cleanup
+			// eagler side closed, tear down the connection to the real server
+			try {
+				await this.rawEpoxy?.close();
+			} catch {}
 		})();
 		this.impl = impl;
 	}
